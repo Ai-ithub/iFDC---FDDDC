@@ -74,9 +74,7 @@ For efficiency and production, higher `ROP_mph` indicates faster drilling; hence
 
 So the reward function is defined as:
 
-$$
-\text{Reward} = \alpha \cdot \text{ROP}_{\text{mph}} - \beta \cdot \text{Formation_Damage_Index}
-$$
+Reward = α * ROP_mph - β * Formation_Damage_Index
 
 Where α and β are tunable weights that are chosen depending on what we care about more:
 * Increase α for more efficiency and speed
