@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 from data_generator import fluid_loss_risk, emulsion_risk, reactivity_score 
 
-# نمونه‌ی کوچک از داده‌ها برای تست
+# A smaller sample for testing
 @pytest.fixture
 def test_row():
     return {
@@ -33,7 +33,6 @@ def test_reactivity_score_medium():
 def test_reactivity_score_low():
     assert reactivity_score({"Shale_Reactiveness": "Low"}) == 0
 
-# تست افزودن نویز
 def test_add_noise_consistency():
     df = pd.DataFrame({
         'A': np.ones(1000) * 50,
@@ -45,7 +44,6 @@ def test_add_noise_consistency():
     assert (noisy_df['A'] != df['A']).any()
     assert (noisy_df['B'] != df['B']).any()
 
-# تست افزودن داده‌های گمشده
 def test_add_missing_data():
     df = pd.DataFrame({
         'X': np.random.rand(1000),
