@@ -8,7 +8,7 @@ def main():
     consumer = KafkaConsumer(
         KAFKA_TOPIC,
         bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
-        auto_offset_reset='earliest',  # از اول پیام‌ها رو بخون
+        auto_offset_reset='earliest',  # Read from the beginning
         enable_auto_commit=True,
         group_id='drilling_data_consumers',
         value_deserializer=lambda m: json.loads(m.decode('utf-8'))
