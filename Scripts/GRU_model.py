@@ -14,19 +14,19 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.calibration import CalibratedClassifierCV
 import joblib
 
-# تنظیمات اولیه
+# Initial settings
 plt.style.use('ggplot')
 torch.manual_seed(42)
 np.random.seed(42)
 
-# 📌 مسیرها
+# 📌 Paths
 data_path = "FDMS_well_WELL_1.parquet"
 model_output_path = "models/fluid_loss_best_model.onnx"
 
-# ⚙️ دستگاه
+# ⚙️ Device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# 📦 Dataset کلاس
+# 📦 Dataset class
 class FluidLossDataset(Dataset):
     def __init__(self, X, y):
         self.X = torch.tensor(X, dtype=torch.float32)
@@ -38,7 +38,7 @@ class FluidLossDataset(Dataset):
     def __getitem__(self, idx):
         return self.X[idx], self.y[idx]
 
-# 🧠 مدل GRU
+# 🧠 GRU Model
 class GRUModel(nn.Module):
     def __init__(self, input_size, hidden_size=128, num_layers=2):
         super().__init__()
@@ -66,11 +66,11 @@ class GRUModel(nn.Module):
         x = x.unsqueeze(1)  # [batch_size, 1, input_size]
         gru_out, _ = self.gru(x)  # [batch_size, 1, hidden_size]
         
-        # توجه
+        # Attention
         attention_weights = torch.softmax(self.attention(gru_out), dim=1)
         context = torch.sum(attention_weights * gru_out, dim=1)
         
-        # طبقه‌بندی
+        # Classification
         out = self.classifier(context)
         return out.squeeze()
 
@@ -108,7 +108,7 @@ class GRUModel(nn.Module):
                 
                 epoch_loss += loss.item()
             
-            # ارزیابی
+            # Evaluation
             self.eval()
             val_preds = []
             with torch.no_grad():
@@ -121,7 +121,7 @@ class GRUModel(nn.Module):
             
             print(f"Epoch {epoch+1}/{epochs} - Loss: {epoch_loss/len(train_loader):.4f} - Val Recall: {val_recall:.4f}")
 
-# 🧠 مدل ترکیبی
+# 🧠 Hybrid Model
 class HybridModel:
     def __init__(self, input_size):
         self.gru_model = GRUModel(input_size).to(device)
@@ -129,20 +129,20 @@ class HybridModel:
         self.calibrator = CalibratedClassifierCV(self.rf_model, cv=3)
         
     def train(self, X_train, y_train, X_val, y_val):
-        # آموزش GRU
+        # Train GRU
         print("Training GRU Model...")
         self.gru_model.fit(X_train, y_train, X_val, y_val)
         
-        # استخراج ویژگی‌ها
+        # Feature extraction
         print("Extracting features...")
         X_train_features = self.gru_model.extract_features(X_train)
         X_val_features = self.gru_model.extract_features(X_val)
         
-        # آموزش RandomForest
+        # Train RandomForest
         print("Training RandomForest...")
         self.calibrator.fit(X_train_features, y_train)
         
-        # ارزیابی روی اعتبارسنجی
+        # Validation evaluation
         val_probs = self.calibrator.predict_proba(X_val_features)[:, 1]
         val_pred = (val_probs > 0.5).astype(int)
         print(f"Validation Recall: {recall_score(y_val, val_pred):.4f}")
@@ -151,16 +151,16 @@ class HybridModel:
         features = self.gru_model.extract_features(X)
         return self.calibrator.predict_proba(features)[:, 1]
 
-# 📊 توابع رسم نمودار
+# 📊 Plotting functions
 def plot_metrics(y_true, y_pred, y_probs):
     fig, axes = plt.subplots(2, 2, figsize=(15, 12))
     
-    # ماتریس درهم‌ریختگی
+    # Confusion matrix
     cm = confusion_matrix(y_true, y_pred)
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=axes[0, 0])
     axes[0, 0].set_title('Confusion Matrix')
     
-    # منحنی ROC
+    # ROC curve
     fpr, tpr, _ = roc_curve(y_true, y_probs)
     axes[0, 1].plot(fpr, tpr, color='darkorange', lw=2)
     axes[0, 1].plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
@@ -168,14 +168,14 @@ def plot_metrics(y_true, y_pred, y_probs):
     axes[0, 1].set_xlabel('False Positive Rate')
     axes[0, 1].set_ylabel('True Positive Rate')
     
-    # منحنی Precision-Recall
+    # Precision-Recall curve
     precision, recall, _ = precision_recall_curve(y_true, y_probs)
     axes[1, 0].plot(recall, precision, color='blue', lw=2)
     axes[1, 0].set_title('Precision-Recall Curve')
     axes[1, 0].set_xlabel('Recall')
     axes[1, 0].set_ylabel('Precision')
     
-    # توزیع پیش‌بینی‌ها
+    # Prediction distribution
     axes[1, 1].hist(y_probs[y_true==0], bins=30, alpha=0.5, label='Class 0')
     axes[1, 1].hist(y_probs[y_true==1], bins=30, alpha=0.5, label='Class 1')
     axes[1, 1].set_title('Prediction Distribution')
@@ -185,56 +185,56 @@ def plot_metrics(y_true, y_pred, y_probs):
     plt.savefig('metrics_plot.png')
     plt.show()
 
-# 🔍 بارگذاری و پیش‌پردازش داده
+# 🔍 Load and preprocess data
 def load_and_preprocess(path):
     df = pd.read_parquet(path)
     
-    # حذف ستون‌های غیرضروری
+    # Drop unnecessary columns
     df.drop(columns=["WELL_ID", "LAT", "LONG", "timestamp"], errors='ignore', inplace=True)
     df.dropna(inplace=True)
     
-    # ایجاد برچسب
+    # Create label
     df["Fluid_Loss_Label"] = (df["Fluid_Loss_Risk"] > 0.5).astype(int)
     
-    # تبدیل متغیرهای کیفی
+    # Encode categorical variables
     df = pd.get_dummies(df, columns=["Bit_Type", "Formation_Type", "Shale_Reactiveness"], drop_first=True)
     
-    # جداسازی ویژگی‌ها و برچسب
+    # Separate features and label
     X = df.drop(columns=["Fluid_Loss_Risk", "Fluid_Loss_Label"])
     y = df["Fluid_Loss_Label"]
     
-    # تبدیل به آرایه عددی
+    # Convert to numeric array
     X = X.select_dtypes(include=[np.number]).astype(np.float32).values
     y = y.values
     
     return X, y
   
 def plot_shap_analysis(model, X, feature_names=None):
-    """تحلیل SHAP ساده"""
+    """Simple SHAP Analysis"""
     try:
         print("🔍 Running SHAP analysis...")
         
-        # استخراج ویژگی از GRU
+        # Extract features from GRU
         features = model.gru_model.extract_features(X)
         
-        # دسترسی به مدل RandomForest
+        # Access RandomForest model
         rf_model = model.calibrator.calibrated_classifiers_[0].estimator
         
-        # ایجاد explainer
+        # Create explainer
         explainer = shap.TreeExplainer(rf_model)
         shap_values = explainer.shap_values(features)
         
-        # انتخاب کلاس مثبت برای نمایش
+        # Select positive class for display
         if isinstance(shap_values, list):
-            shap_vals = shap_values[1]  # کلاس 1
+            shap_vals = shap_values[1]  # class 1
         else:
             shap_vals = shap_values
         
-        # نام ویژگی‌ها
+        # Feature names
         if feature_names is None:
             feature_names = [f"GRU_Feature_{i}" for i in range(features.shape[1])]
         
-        # رسم نمودار خلاصه
+        # Plot summary
         plt.figure(figsize=(10, 6))
         shap.summary_plot(shap_vals, features, feature_names=feature_names, show=False)
         plt.title("SHAP Analysis - Feature Importance")
@@ -248,12 +248,12 @@ def plot_shap_analysis(model, X, feature_names=None):
         print(f"⚠️ SHAP failed: {str(e)}")
 
 
-# 💾 ذخیره مدل
+# 💾 Save model
 def save_model(model, X_sample):
-    # ذخیره مدل GRU
+    # Save GRU model
     torch.save(model.gru_model.state_dict(), 'gru_model.pth')
     
-    # ذخیره مدل RandomForest
+    # Save RandomForest model
     joblib.dump(model.calibrator, 'rf_calibrator.pkl')
     
     print("✅ Models saved successfully")
@@ -261,15 +261,15 @@ def export_gru_to_onnx(model, input_sample, output_path):
     model.gru_model.eval()
     input_tensor = torch.tensor(input_sample, dtype=torch.float32).to(device)
 
-    # اضافه کردن batch و sequence dimension (برای GRU)
+    # Add batch and sequence dimension (for GRU)
     input_tensor = input_tensor.unsqueeze(1)
 
     torch.onnx.export(
-        model.gru_model,                     # مدل PyTorch
-        input_tensor,                        # ورودی نمونه‌ای
-        output_path,                         # مسیر ذخیره‌سازی
+        model.gru_model,                     # PyTorch model
+        input_tensor,                        # Sample input
+        output_path,                         # Save path
         export_params=True,
-        opset_version=11,                    # نسخه اپ‌ست سازگار
+        opset_version=11,                    # Compatible opset version
         do_constant_folding=True,
         input_names=['input'],
         output_names=['output'],
@@ -278,41 +278,41 @@ def export_gru_to_onnx(model, input_sample, output_path):
     print(f"✅ GRU model exported to ONNX at: {output_path}")
 
 
-# 🚀 اجرای کامل
+# 🚀 Full pipeline execution
 def run_pipeline():
-    # بارگذاری داده‌ها
+    # Load data
     print("📥 Loading data...")
     X, y = load_and_preprocess(data_path)
     print(f"🔍 Class distribution: {dict(Counter(y))}")
     
-    # تقسیم داده‌ها
+    # Split data
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, stratify=y, random_state=42)
     X_train, X_val, y_train, y_val = train_test_split(
         X_train, y_train, test_size=0.1, stratify=y_train, random_state=42)
     
-    # اعمال SMOTE فقط روی داده آموزشی
+    # Apply SMOTE only on training data
     print("🔄 Applying SMOTE...")
     smote = SMOTE(random_state=42)
     X_train_res, y_train_res = smote.fit_resample(X_train, y_train)
     
-    # آموزش مدل ترکیبی
+    # Train hybrid model
     print("🚀 Training Hybrid Model...")
     model = HybridModel(X_train.shape[1])
     model.train(X_train_res, y_train_res, X_val, y_val)
     
-    # پیش‌بینی و ارزیابی
+    # Predict and evaluate
     print("🔮 Predicting on test set...")
     y_probs = model.predict_proba(X_test)
     
-    # یافتن آستانه بهینه
+    # Find optimal threshold
     precision, recall, thresholds = precision_recall_curve(y_test, y_probs)
     f1_scores = 2 * (precision * recall) / (precision + recall + 1e-9)
     optimal_idx = np.argmax(f1_scores)
     optimal_threshold = thresholds[optimal_idx]
     y_pred = (y_probs >= optimal_threshold).astype(int)
     
-    # محاسبه معیارها
+    # Compute metrics
     metrics = {
         'Accuracy': accuracy_score(y_test, y_pred),
         'Precision': precision_score(y_test, y_pred),
@@ -327,7 +327,7 @@ def run_pipeline():
         print(f"{name}: {value:.4f}")
     
 
-    #  رسم نمودارها
+    # Plot metrics
     plot_metrics(y_test, y_pred, y_probs)
     
 
@@ -336,7 +336,7 @@ def run_pipeline():
     sample_idx = np.random.choice(X_test.shape[0], size=200, replace=False)  
     plot_shap_analysis(model, X_test[sample_idx])
     
-    # ذخیره مدل
+    # Save model
     save_model(model, X_test[:1])
     export_gru_to_onnx(model, X_test[:1], model_output_path)
 
