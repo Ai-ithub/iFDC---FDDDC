@@ -10,7 +10,7 @@ from sklearn.impute import SimpleImputer
 import shap
 import os
 
-# ------------------ [پیکربندی] ------------------
+# ------------------ [Configuration] ------------------
 DATA_PATH = "FDMS_well_WELL_1.parquet"
 MODEL_OUTPUT_PATH = "models/fluid_loss_best_model.onnx"
 BATCH_SIZE = 1024
@@ -18,17 +18,17 @@ LEARNING_RATE = 1e-3
 EPOCHS = 30
 PATIENCE = 5
 
-# ------------------ [بارگذاری داده‌ها] ------------------
+# ------------------ [Load Data] ------------------
 def load_data(path):
-    print("📥 در حال بارگذاری داده‌ها...")
+    print("📥 Loading data...")
     df = pd.read_parquet(path)
     df["Fluid_Loss_Label"] = (df["Fluid_Loss_Risk"] > 0.5).astype(int)
-    print("✅ داده‌ها بارگذاری و آماده شدند.")
+    print("✅ Data loaded and ready.")
     return df
 
-# ------------------ [پیش‌پردازش داده‌ها] ------------------
+# ------------------ [Preprocess Data] ------------------
 def preprocess_data(df):
-    print("⚙️ پیش‌پردازش داده‌ها...")
+    print("⚙️ Preprocessing data...")
     target = "Fluid_Loss_Label"
     features = [col for col in df.columns if col not in [target, "Fluid_Loss_Risk", "timestamp", "WELL_ID", "LAT", "LONG"]]
 
@@ -50,10 +50,10 @@ def preprocess_data(df):
         X_scaled, y, test_size=0.2, stratify=y, random_state=42
     )
 
-    print("✅ پیش‌پردازش کامل شد.")
+    print("✅ Preprocessing completed.")
     return X_train, X_test, y_train, y_test, features
 
-# ------------------ [تعریف Dataset سفارشی] ------------------
+# ------------------ [Define Custom Dataset] ------------------
 class FluidLossDataset(Dataset):
     def __init__(self, X, y):
         self.X = torch.tensor(X, dtype=torch.float32)
@@ -65,7 +65,7 @@ class FluidLossDataset(Dataset):
     def __getitem__(self, idx):
         return self.X[idx], self.y[idx]
 
-# ------------------ [تعریف مدل] ------------------
+# ------------------ [Define Model] ------------------
 class ResidualBlock(nn.Module):
     def __init__(self, dim):
         super().__init__()
@@ -98,9 +98,9 @@ class FluidLossModel(nn.Module):
     def forward(self, x):
         return self.net(x).squeeze(1)
 
-# ------------------ [آموزش مدل] ------------------
+# ------------------ [Train Model] ------------------
 def train_model(model, train_loader, test_loader, device):
-    print("🚀 شروع آموزش مدل...")
+    print("🚀 Starting model training...")
     criterion = nn.BCEWithLogitsLoss()
     optimizer = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=3, factor=0.5, verbose=True)
@@ -140,16 +140,16 @@ def train_model(model, train_loader, test_loader, device):
         else:
             wait += 1
             if wait >= PATIENCE:
-                print("🛑 توقف زودهنگام (Early Stopping).")
+                print("🛑 Early stopping.")
                 break
 
     model.load_state_dict(best_state)
-    print("✅ آموزش مدل به پایان رسید.")
+    print("✅ Model training completed.")
     return model
 
-# ------------------ [ارزیابی مدل] ------------------
+# ------------------ [Evaluate Model] ------------------
 def evaluate_model(model, X_test, y_test, device):
-    print("📊 شروع ارزیابی مدل...")
+    print("📊 Starting model evaluation...")
     model.eval()
     with torch.no_grad():
         y_pred_prob = torch.sigmoid(model(torch.tensor(X_test, dtype=torch.float32).to(device))).cpu().numpy()
@@ -162,10 +162,10 @@ def evaluate_model(model, X_test, y_test, device):
         "F1 Score": f1_score(y_test, y_pred),
         "AUC-ROC": roc_auc_score(y_test, y_pred_prob),
     }
-    print("✅ ارزیابی مدل کامل شد.")
+    print("✅ Model evaluation completed.")
     return results
 
-# ------------------ [تابع پیش‌بینی برای SHAP] ------------------
+# ------------------ [Prediction Function for SHAP] ------------------
 def model_predict_fn(model, device):
     def predict(x):
         with torch.no_grad():
@@ -173,22 +173,22 @@ def model_predict_fn(model, device):
             return torch.sigmoid(model(x_tensor)).cpu().numpy()
     return predict
 
-# ------------------ [تحلیل SHAP] ------------------
+# ------------------ [SHAP Analysis] ------------------
 def run_shap(model, X_train, X_test, features, device):
-    print("📈 محاسبه مقادیر SHAP...")
+    print("📈 Calculating SHAP values...")
     explainer = shap.KernelExplainer(model_predict_fn(model, device), X_train[:300])
     shap_values = explainer.shap_values(X_test[:150])
     shap.summary_plot(shap_values, features=X_test[:150], feature_names=features)
-    print("✅ تحلیل SHAP انجام شد.")
+    print("✅ SHAP analysis completed.")
 
-# ------------------ [ذخیره مدل] ------------------
+# ------------------ [Export Model] ------------------
 def export_model_onnx(model, input_dim, device, output_path):
-    print("💾 ذخیره مدل در فرمت ONNX...")
+    print("💾 Saving model in ONNX format...")
     dummy_input = torch.randn(1, input_dim, dtype=torch.float32).to(device)
     torch.onnx.export(model, dummy_input, MODEL_OUTPUT_PATH , input_names=["input"], output_names=["output"], opset_version=11)
-    print(f"✅ مدل ذخیره شد: {output_path}")
+    print(f"✅ Model saved: {output_path}")
 
-# ------------------ [اجرای همه چیز] ------------------
+# ------------------ [Run All] ------------------
 def main():
     df = load_data(DATA_PATH)
     X_train, X_test, y_train, y_test, features = preprocess_data(df)
@@ -204,14 +204,14 @@ def main():
     model = train_model(model, train_loader, test_loader, device)
 
     results = evaluate_model(model, X_test, y_test, device)
-    print("\n📊 نتایج نهایی:")
+    print("\n📊 Final Results:")
     for k, v in results.items():
         print(f"{k}: {v:.5f}")
 
     run_shap(model, X_train, X_test, features, device)
     export_model_onnx(model, X_train.shape[1], device, MODEL_OUTPUT_PATH)
 
-    print("\n🏁 تمام مراحل با موفقیت انجام شد.")
+    print("\n🏁 All steps completed successfully.")
 
 if __name__ == "__main__":
     main()
