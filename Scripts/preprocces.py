@@ -8,18 +8,18 @@ import json
 from pathlib import Path
 
 def setup_directories():
-    """ایجاد پوشه‌های مورد نیاز"""
+    """Create required folders"""
     Path("datasets/processed").mkdir(exist_ok=True)
     Path("datasets/outliers").mkdir(exist_ok=True)
-    Path("datasets/missing").mkdir(exist_ok=True)  # پوشه جدید برای داده‌های گمشده
+    Path("datasets/missing").mkdir(exist_ok=True)  # New folder for missing data
     Path("datasets/stats").mkdir(exist_ok=True)
 
 def detect_outliers(df, method='iqr', threshold=3):
     """
-    شناسایی outlierها با روش‌های مختلف
-    پارامترها:
-        method: 'iqr' یا 'zscore'
-        threshold: حد آستانه برای outlierها
+    Detect outliers using different methods
+    Parameters:
+        method: 'iqr' or 'zscore'
+        threshold: threshold for outlier detection
     """
     numeric_cols = df.select_dtypes(include=[np.number]).columns
     
@@ -38,9 +38,9 @@ def detect_outliers(df, method='iqr', threshold=3):
 
 def standardize_data(df, method='standard'):
     """
-    استانداردسازی داده‌ها
-    پارامترها:
-        method: 'standard' (mean-std) یا 'minmax'
+    Standardize data
+    Parameters:
+        method: 'standard' (mean-std) or 'minmax'
     """
     numeric_cols = df.select_dtypes(include=[np.number]).columns
     
@@ -65,16 +65,16 @@ def standardize_data(df, method='standard'):
     return df, stats
 
 def process_partition(df, outlier_method='iqr', standardization_method='standard'):
-    """پردازش هر پارتیشن داده"""
-    # 1. شناسایی و جداسازی داده‌های گمشده
+    """Process each data partition"""
+    # 1. Detect and separate missing data
     missing_mask = df.isnull().any(axis=1)
     df_missing = df[missing_mask]
     df = df[~missing_mask]
     
-    # 2. شناسایی outlierها
+    # 2. Detect outliers
     outliers = detect_outliers(df, method=outlier_method)
     
-    # 3. استانداردسازی داده‌ها
+    # 3. Standardize data
     df_clean, scaling_stats = standardize_data(df[~outliers], method=standardization_method)
     
     return {
@@ -88,29 +88,29 @@ def main():
     setup_directories()
     
     with Client(n_workers=4, memory_limit='4GB') as client:
-        # خواندن داده‌ها
+        # Read data
         ddf = dd.read_parquet("datasets/synthetic_fdms_chunks/*.parquet", chunksize=100000)
         
-        # پردازش موازی
+        # Parallel processing
         results = ddf.map_partitions(
             process_partition,
-            outlier_method='zscore',  # یا 'iqr'
-            standardization_method='standard'  # یا 'minmax'
+            outlier_method='zscore',  # or 'iqr'
+            standardization_method='standard'  # or 'minmax'
         ).compute()
         
-        # تجمیع نتایج
+        # Aggregate results
         df_clean = dd.concat([r['clean'] for r in results])
         df_outliers = dd.concat([r['outliers'] for r in results])
-        df_missing = dd.concat([r['missing'] for r in results])  # داده‌های گمشده
+        df_missing = dd.concat([r['missing'] for r in results])  # missing data
         
-        # ذخیره‌سازی
+        # Save results
         df_clean.to_parquet("datasets/processed/", partition_on=['WELL_ID'])
         df_outliers.to_parquet("datasets/outliers/")
-        df_missing.to_parquet("datasets/missing/")  # ذخیره داده‌های گمشده
+        df_missing.to_parquet("datasets/missing/")  # save missing data
         
-        # ذخیره آماره‌های استانداردسازی
+        # Save scaling statistics
         with open("datasets/stats/scaling_stats.json", "w") as f:
-            json.dump(results[0]['stats'], f)  # آماره‌های اولین پارتیشن به عنوان نمونه
+            json.dump(results[0]['stats'], f)  # using first partition's stats as a sample
 
 if __name__ == '__main__':
     main()
