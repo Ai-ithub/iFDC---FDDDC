@@ -7,21 +7,21 @@ from datetime import datetime
 import pytz
 import uuid
 
-# تنظیم لاگینگ
+# Logging settings
 logging.basicConfig(
     filename='data_generation.log',
     level=logging.INFO,
     format='%(asctime)s - %(message)s'
 )
 
-# تنظیمات Kafka
+# Kafka server 
 KAFKA_BOOTSTRAP_SERVERS = ['localhost:9092']
 KAFKA_TOPIC = 'drilling_data'
 
-# نرخ ارسال
+# Delay 
 RATE_PER_SECOND = 1
 
-# پارامترهای احتمالی
+# Expected Parameters 
 bit_types = ['PDC', 'Roller Cone', 'Hybrid']
 formation_types = ['Sandstone', 'Shale', 'Limestone', 'Carbonate']
 shale_reactivity = ['Low', 'Medium', 'High']
