@@ -22,7 +22,7 @@ def report_missing(df):
     missing = df.isnull().sum()
     missing_percent = (missing / len(df)) * 100
     missing_report = missing_percent[missing_percent > 0].sort_values(ascending=False)
-    print("\n📊 گزارش داده‌های گمشده:")
+    print("\n📊 Missing Data Report:")
     print(missing_report)
     return missing_report
 
@@ -101,12 +101,12 @@ def impute_missing(df):
     missing_cols = df.columns[df.isnull().any()]
 
     for col in missing_cols:
-        print(f"\n🔧 پردازش ستون: {col}")
+        print(f"\n🔧 Processing column: {col}")
         df_train = df[df[col].notnull()].copy()
         df_test = df[df[col].isnull()].copy()
 
         if df_train.shape[0] < 500:
-            print("⛔ داده کافی برای آموزش وجود ندارد.")
+            print("⛔ Not enough data for training.")
             continue
 
         y = df_train[col]
@@ -150,9 +150,9 @@ def impute_missing(df):
                     best_score = score
 
             except Exception as e:
-                print(f"⚠️ خطا در مدل {name}: {e}")
+                print(f"⚠️ Error in model {name}: {e}")
 
-        print(f"✅ بهترین مدل برای {col}: {best_model_name} | {best_metrics}")
+        print(f"✅ Best model for {col}: {best_model_name} | {best_metrics}")
         results.append((col, best_model_name, best_metrics))
 
         joblib.dump(best_model, os.path.join(OUTPUT_DIR, f"{col}_best_model10.pkl"))
@@ -160,14 +160,14 @@ def impute_missing(df):
     return results
 
 if __name__ == "__main__":
-    print("📥 بارگذاری داده...")
+    print("📥 Loading data...")
     df = pd.read_parquet("synthetic_fdms_chunks/FDMS_well_WELL_10.parquet")
     df = df.sample(100_000, random_state=42)
 
-    print("\n🚩 شروع فرآیند تحلیل داده‌های گمشده")
+    print("\n🚩 Starting missing data analysis process")
     missing_report = report_missing(df)
     evaluation_results = impute_missing(df)
 
-    print("\n📊 نتایج نهایی مدل‌ها:")
+    print("\n📊 Final model results:")
     for col, model, metrics in evaluation_results:
         print(f"{col}: {model} -> {metrics}")
