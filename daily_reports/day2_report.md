@@ -1,25 +1,25 @@
 
-# نام و نام خانوادگی:امین مقدم
-**حوزه فعالیت:** هوش مصنوعی
-**تاریخ:** ۱۴۰۳/۰۴/۲۳  
-**شماره گزارش:** ۲  
+#  Day 2 Report – Data Preprocessing Analysis
+#Name: Amin Moghadam
+**Date:** 1404-04-24 
+**Subject:** Ai
 
 ---
 
-##  ادامه مطالعات – بررسی فایل `preprocces_pipeline.py`
+##  Continued Research – Review of `preprocces_pipeline.py`
 
-در روز دوم تمرکز اصلی روی بررسی و تحلیل ساختار و عملکرد فایل `preprocces_pipeline.py` بود. این فایل مسئول آماده‌سازی و تمیز کردن داده‌ها پیش از ارسال به مدل‌های یادگیری ماشین است.
+On Day 2, the primary focus was on analyzing the structure and logic of the `preprocces_pipeline.py` file, which is responsible for cleaning and preparing raw data before passing it to the machine learning models.
 
-###  عملکرد کلی فایل:
-- **ورودی:** فایل CSV از مسیر `dataset/` با ویژگی‌های فنی حفاری مانند: `rpm`, `spp`, `flow_rate`, `ecd`, `temperature`, و غیره.
-- **مراحل پردازش:**
-  1. بررسی داده‌های گمشده (null values) و حذف یا جایگزینی آن‌ها
-  2. بررسی محدوده معتبر برای هر ویژگی (مثلاً `0 < flow_rate < 1500`)
-  3. نرمال‌سازی یا مقیاس‌بندی برخی ویژگی‌ها (در صورت نیاز)
-  4. برچسب‌گذاری داده‌های خراب (anomalous tagging)
-  5. ذخیره خروجی پاک‌سازی‌شده در مسیر `data/clean_data.csv`
+###  Overview of the Pipeline:
+- **Input:** A CSV file from `dataset/` containing drilling parameters such as `rpm`, `spp`, `flow_rate`, `ecd`, `temperature`, and more.
+- **Main processing steps:**
+  1. Detect and remove or fill missing values
+  2. Validate value ranges for key parameters (e.g., `0 < flow_rate < 1500`)
+  3. Normalize or scale specific features (if necessary)
+  4. Tag anomalous or suspicious data entries
+  5. Save the cleaned output to `data/clean_data.csv`
 
-###  کدهای مهم:
+###  Key Snippets:
 ```python
 df = pd.read_csv("dataset/raw_data.csv")
 df.dropna(inplace=True)
@@ -29,27 +29,26 @@ df.to_csv("data/clean_data.csv", index=False)
 
 ---
 
-##  یافته‌های مهم:
-- فایل فاقد تست‌های دقیق برای همه ویژگی‌هاست (مثلاً `ph`, `cl_concentration` بررسی نمی‌شوند)
-- مسیر `data/clean_data.csv` وجود نداشت و باید ایجاد می‌شد
-- پتانسیل بالایی برای تبدیل این فایل به pipeline قابل تست وجود دارد
+##  Key Observations:
+- Some important fields (e.g., `ph`, `cl_concentration`) are not yet validated in the current pipeline.
+- The directory `data/clean_data.csv` did not exist and had to be created manually.
+- The current pipeline can be further enhanced with modular design and testing support.
 
 ---
 
-## تغییرات انجام شده:
-- اجرای pipeline روی فایل نمونه `dataset/sample_data.csv`
-- بررسی خروجی نهایی تمیز و ذخیره در فایل جدید
-- آماده‌سازی فایل برای ارزیابی مدل در روز آینده
+##  Tasks Completed:
+- Successfully ran the pipeline on `dataset/sample_data.csv`
+- Verified and inspected the cleaned output
+- Prepared cleaned data for upcoming model training tasks
 
 ---
 
-##  برنامه کاری فردا – ورود به مرحله مدل‌سازی
+##  Plan for Tomorrow – Start ML Model Training
 
-###  اولویت‌های روز سوم:
-1. بررسی اسکریپت آموزش مدل (احتمالاً در مسیر `Scripts/train_model.py`)
-2. آموزش مدل پایه (XGBoost یا Regression ساده) روی داده‌های تمیزشده
-3. ارزیابی مدل با RMSE, MAE
-4. ذخیره مدل نهایی در مسیر `models/`
+###  Day 3 Priorities:
+1. Review the model training script (likely in `Scripts/train_model.py`)
+2. Train a baseline model (e.g., XGBoost or simple regression) using cleaned data
+3. Evaluate model using RMSE and MAE metrics
+4. Save trained model artifact to the `models/` directory
 
 ---
-
