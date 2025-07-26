@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sat Jul 26 17:08:50 2025
-
+plz for better view, open it with spyder IDE
 @author: hosein
 """
 
